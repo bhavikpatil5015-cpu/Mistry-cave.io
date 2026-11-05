@@ -1,0 +1,22 @@
+<resources>
+    <string name="app_name">Dark Escape 2.5D</string>
+    <string name="hud_health">HP</string>
+    <string name="hud_stamina">STA</string>
+    <string name="hud_coins">Coins</string>
+    <string name="hud_gems">Gems</string>
+    <string name="hud_keys">Relic Keys</string>
+    <string name="hud_secrets">Secrets</string>
+    <string name="btn_jump">JUMP</string>
+    <string name="btn_dodge">DASH</string>
+    <string name="btn_attack">STRIKE</string>
+    <string name="btn_interact">USE</string>
+    <string name="tab_play">Adventure</string>
+    <string name="tab_heroes">Heroes</string>
+    <string name="tab_missions">Missions</string>
+    <string name="tab_generator">Generator Lab</string>
+    <string name="tab_biomes">Biomes</string>
+    <string name="victory_title">PORTAL ESCAPED!</string>
+    <string name="defeat_title">FALLEN IN THE DARK</string>
+    <string name="next_level_btn">Auto-Generate Next Level</string>
+    <string name="retry_level_btn">Retry Current Seed</string>
+</resources>

@@ -1,0 +1,6 @@
+{
+  "name": "Dark Escape 2.5D",
+  "description": "A 2.5D isometric adventure escape game with an infinite procedural level generation engine, 8 biomes, adaptive difficulty, and pathfinding validation.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
