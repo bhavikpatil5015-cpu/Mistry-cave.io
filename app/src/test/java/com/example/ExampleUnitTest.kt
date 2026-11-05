@@ -220,5 +220,44 @@ class ExampleUnitTest {
         assertTrue("Destructible prop must take damage or shatter on player strike", updatedProp.hp < firstProp.hp || updatedProp.isDestroyed)
         assertEquals(com.example.model.CharacterAnimState.ATTACK, vm.engineState.value.playerAnimState)
     }
+
+    @Test
+    fun verifyCoroutineParticleSystemSnowLavaAndMagicEffects() {
+        val vm = GameViewModel(Application(), injectedRepository = null)
+        val ps = vm.coroutineParticleSystem
+        assertTrue("Particle system must warm up active particles on level load", ps.activeCount > 0)
+
+        // 1. Test Falling Snow Preset & Downward Kinematics
+        vm.setParticlePreset(com.example.engine.ParticleEffectPreset.FALLING_SNOW)
+        assertEquals(com.example.engine.ParticleEffectPreset.FALLING_SNOW, vm.engineState.value.particlePreset)
+        repeat(8) { ps.stepSimulation(0.04f) }
+        val snowCount = (0 until ps.maxCapacity).count { ps.type[it] == com.example.engine.ParticleArchetype.SNOWFLAKE }
+        assertTrue("Falling Snow preset must spawn active SNOWFLAKE particles", snowCount > 10)
+
+        // 2. Test Rising Lava Sparks Preset & Upward Thermal Buoyancy
+        vm.setParticlePreset(com.example.engine.ParticleEffectPreset.RISING_LAVA_SPARKS)
+        repeat(10) { ps.stepSimulation(0.04f) }
+        val lavaIndices = (0 until ps.maxCapacity).filter { ps.type[it] == com.example.engine.ParticleArchetype.LAVA_SPARK }
+        assertTrue("Rising Lava Sparks preset must spawn active LAVA_SPARK particles", lavaIndices.isNotEmpty())
+        val sampleLavaIdx = lavaIndices.first()
+        assertTrue("Lava sparks must have positive upward vertical velocity (vz > 0)", ps.vz[sampleLavaIdx] > 0f)
+
+        // 3. Test Magical Glowing Particles Preset
+        vm.setParticlePreset(com.example.engine.ParticleEffectPreset.MAGICAL_GLOW)
+        repeat(10) { ps.stepSimulation(0.04f) }
+        val magicCount = (0 until ps.maxCapacity).count { ps.type[it] == com.example.engine.ParticleArchetype.MAGIC_GLOW }
+        assertTrue("Magical Glow preset must spawn active MAGIC_GLOW particles", magicCount > 0)
+
+        // 4. Test Elemental Convergence & Coroutine Background Loop
+        vm.setParticlePreset(com.example.engine.ParticleEffectPreset.ELEMENTAL_CONVERGENCE)
+        val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Default)
+        val job = ps.startCoroutineSimulation(scope)
+        assertTrue("Coroutine simulation job must be active", job.isActive)
+        Thread.sleep(60)
+        ps.stopCoroutineSimulation()
+        assertFalse("Coroutine simulation job must stop cleanly", job.isActive)
+        assertTrue("Active particle count must remain populated", ps.activeCount > 20)
+    }
 }
+
 

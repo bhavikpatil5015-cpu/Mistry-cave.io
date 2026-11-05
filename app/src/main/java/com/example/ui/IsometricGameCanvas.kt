@@ -28,6 +28,7 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.sp
+import com.example.engine.CoroutineParticleSystem
 import com.example.engine.ProceduralMaterialAtlas
 import com.example.model.BiomeType
 import com.example.model.CharacterAnimState
@@ -57,6 +58,7 @@ fun IsometricGameCanvas(
     skin: CharacterSkin,
     particles: Array<ParticleFx>,
     weatherMotes: Array<WeatherMote>,
+    coroutineParticleSystem: CoroutineParticleSystem,
     onStepPhysics: (Float) -> Unit,
     onPinchZoom: (Float) -> Unit = {},
     modifier: Modifier = Modifier
@@ -283,23 +285,29 @@ fun IsometricGameCanvas(
             }
         }
 
-        // PASS 5: Real-Time Atmospheric Fog & Biome Weather Particles (Spores, Snow, Sand, Embers, Mist)
+        // PASS 5: High-Performance Coroutine Particle System (Falling Snow, Rising Lava Sparks, Magical Glow) & Atmospheric Fog
         if (quality.enableAtmosphericFogAndWeather) {
             drawRect(color = level.biome.fogColor)
-            val moteCount = quality.maxWeatherParticles.coerceAtMost(weatherMotes.size)
+            val moteCount = (quality.maxWeatherParticles / 2).coerceAtMost(weatherMotes.size)
             for (i in 0 until moteCount) {
                 val m = weatherMotes[i]
                 val wx = camWorldX + m.worldOffsetX
                 val wy = camWorldY + m.worldOffsetY
                 val screenPt = worldToScreen(wx, wy, m.worldZ)
-                val pulseAlpha = (0.35f + 0.35f * sin(state.worldTime * 3f + m.phase)).coerceIn(0.15f, 0.85f)
+                val pulseAlpha = (0.25f + 0.25f * sin(state.worldTime * 3f + m.phase)).coerceIn(0.10f, 0.55f)
                 drawCircle(
                     color = level.biome.accentColor.copy(alpha = pulseAlpha),
-                    radius = (tileHalfW * 0.08f * m.sizeFactor).coerceAtLeast(2f),
+                    radius = (tileHalfW * 0.06f * m.sizeFactor).coerceAtLeast(1.8f),
                     center = screenPt
                 )
             }
         }
+        coroutineParticleSystem.renderToCanvas(
+            drawScope = this,
+            tileHalfW = tileHalfW,
+            quality = quality,
+            worldToScreen = ::worldToScreen
+        )
 
         // PASS 6: Real-Time Dynamic Player Lighting Halo
         if (quality.enableDynamicPointLights) {

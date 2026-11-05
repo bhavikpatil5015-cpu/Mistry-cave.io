@@ -86,6 +86,7 @@ fun GameHudAndControlsOverlay(
     onInteract: () -> Unit,
     onToggleHintPath: () -> Unit,
     onCycleGraphicsQuality: () -> Unit,
+    onCycleParticlePreset: () -> Unit = {},
     onAdjustZoom: (Float) -> Unit,
     onNextLevel: () -> Unit,
     onRetryLevel: () -> Unit,
@@ -230,8 +231,37 @@ fun GameHudAndControlsOverlay(
                                 }
                             }
 
+                            val presetColor = state.particlePreset.badgeColor
+                            Surface(
+                                color = presetColor.copy(alpha = 0.20f),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .border(1.dp, presetColor, RoundedCornerShape(8.dp))
+                                    .clickable(onClick = onCycleParticlePreset)
+                                    .testTag("hud_particle_preset_button")
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.AutoAwesome,
+                                        contentDescription = "Particle Preset",
+                                        tint = presetColor,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = state.particlePreset.label,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = Color.White
+                                    )
+                                }
+                            }
+
                             Text(
-                                text = "${state.currentFps} FPS • ${((state.frameTimeMs * 10).toInt() / 10f)}ms",
+                                text = "${state.currentFps} FPS • ${state.activeParticleCount} PTL",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = Color(0xFF94A3B8),
                                 modifier = Modifier.testTag("hud_fps_badge")

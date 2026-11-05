@@ -132,6 +132,7 @@ fun DarkEscapeApp(
                         skin = skin,
                         particles = viewModel.particlePool,
                         weatherMotes = viewModel.weatherPool,
+                        coroutineParticleSystem = viewModel.coroutineParticleSystem,
                         onStepPhysics = viewModel::stepPhysics,
                         onPinchZoom = viewModel::adjustCameraZoom
                     )
@@ -146,6 +147,7 @@ fun DarkEscapeApp(
                         onInteract = viewModel::onInteractPressed,
                         onToggleHintPath = viewModel::toggleHintPath,
                         onCycleGraphicsQuality = viewModel::cycleGraphicsQuality,
+                        onCycleParticlePreset = viewModel::cycleParticlePreset,
                         onAdjustZoom = viewModel::adjustCameraZoom,
                         onNextLevel = viewModel::advanceToNextGeneratedLevel,
                         onRetryLevel = viewModel::retryCurrentLevel

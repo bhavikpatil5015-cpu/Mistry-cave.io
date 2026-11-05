@@ -9,6 +9,9 @@ import com.example.data.DarkEscapeDatabase
 import com.example.data.GameRepository
 import com.example.data.MissionAchievementEntity
 import com.example.data.PlayerSaveEntity
+import com.example.engine.CoroutineParticleSystem
+import com.example.engine.ParticleArchetype
+import com.example.engine.ParticleEffectPreset
 import com.example.engine.ProceduralLevelGenerator
 import com.example.model.BiomeType
 import com.example.model.CharacterAnimState
@@ -98,6 +101,8 @@ data class LevelVictorySummary(
 data class GameEngineState(
     val activeTab: GameTab = GameTab.PLAY,
     val graphicsQuality: GraphicsQuality = GraphicsQuality.ULTRA,
+    val particlePreset: ParticleEffectPreset = ParticleEffectPreset.BIOME_AUTO,
+    val activeParticleCount: Int = 0,
     val autoAdaptQuality: Boolean = true,
     val currentFps: Int = 60,
     val frameTimeMs: Float = 16.6f,
@@ -194,6 +199,7 @@ class GameViewModel(
     val engineState: StateFlow<GameEngineState> = _engineState.asStateFlow()
 
     // Pre-allocated particle pools for zero GC allocation during 60 FPS gameplay
+    val coroutineParticleSystem: CoroutineParticleSystem = CoroutineParticleSystem()
     val particlePool: Array<ParticleFx> = Array(96) { ParticleFx() }
     val weatherPool: Array<WeatherMote> = Array(64) { i ->
         WeatherMote(
@@ -215,6 +221,7 @@ class GameViewModel(
 
     init {
         if (repository != null) {
+            coroutineParticleSystem.startCoroutineSimulation(viewModelScope)
             viewModelScope.launch {
                 val profile = repository.ensureInitialized()
                 loadOrGenerateLevel(
@@ -249,6 +256,31 @@ class GameViewModel(
                 autoAdaptQuality = autoAdapt
             )
         }
+    }
+
+    fun cycleParticlePreset() {
+        _engineState.update { state ->
+            val nextPreset = state.particlePreset.next()
+            coroutineParticleSystem.activePreset = nextPreset
+            state.copy(
+                particlePreset = nextPreset,
+                statusBanner = "Particle Engine Preset: ${nextPreset.label}"
+            )
+        }
+        coroutineParticleSystem.stepSimulation(0.032f)
+        _engineState.update { it.copy(activeParticleCount = coroutineParticleSystem.activeCount) }
+    }
+
+    fun setParticlePreset(preset: ParticleEffectPreset) {
+        coroutineParticleSystem.activePreset = preset
+        _engineState.update {
+            it.copy(
+                particlePreset = preset,
+                statusBanner = "Particle Engine Preset: ${preset.label}"
+            )
+        }
+        coroutineParticleSystem.stepSimulation(0.032f)
+        _engineState.update { it.copy(activeParticleCount = coroutineParticleSystem.activeCount) }
     }
 
     fun adjustCameraZoom(delta: Float) {
@@ -387,6 +419,27 @@ class GameViewModel(
                 statusBanner = "Level $levelNumber • ${generated.biome.displayName} (${generated.biome.weatherType.label})"
             )
         }
+        coroutineParticleSystem.bindLevelEmitters(
+            level = generated,
+            rewards = generated.initialRewards,
+            props = generated.initialProps
+        )
+        coroutineParticleSystem.syncFrameContext(
+            camX = startX,
+            camY = startY,
+            px = startX,
+            py = startY,
+            pz = 0f,
+            pvx = 0f,
+            pvy = 0f,
+            dashingOrAttacking = false,
+            quality = _engineState.value.graphicsQuality,
+            preset = _engineState.value.particlePreset,
+            biome = generated.biome
+        )
+        // Warm up initial environmental particle field so the level starts alive
+        repeat(4) { coroutineParticleSystem.stepSimulation(0.04f) }
+        _engineState.update { it.copy(activeParticleCount = coroutineParticleSystem.activeCount) }
     }
 
     fun onJumpPressed() {
@@ -819,7 +872,7 @@ class GameViewModel(
         val targetZoom = (s.userZoomMultiplier * dynamicZoomFactor).coerceIn(0.72f, 1.40f)
         val nextZoom = s.cameraZoom + (targetZoom - s.cameraZoom) * (6f * dt).coerceIn(0.05f, 1f)
 
-        // 6. Update Combat Particles & Environmental Weather Motes
+        // 6. Update Combat Particles, Coroutine SoA Particle Engine & Environmental Weather Motes
         for (p in particlePool) {
             if (p.active) {
                 p.life += dt
@@ -832,6 +885,20 @@ class GameViewModel(
                 }
             }
         }
+        coroutineParticleSystem.syncFrameContext(
+            camX = nextCamX,
+            camY = nextCamY,
+            px = nextX,
+            py = nextY,
+            pz = nextZ,
+            pvx = newVx,
+            pvy = newVy,
+            dashingOrAttacking = isDashing || s.attackAnimTimer > 0f,
+            quality = activeQuality,
+            preset = s.particlePreset,
+            biome = lvl.biome
+        )
+        coroutineParticleSystem.stepSimulation(dt)
         updateWeatherMotes(lvl.biome.weatherType, dt, activeQuality.maxWeatherParticles)
 
         // 7. Collect Nearby Coins, Gems, Chests & Relic Keys + Animate Opening Chests
@@ -1007,6 +1074,7 @@ class GameViewModel(
         _engineState.update { state ->
             state.copy(
                 graphicsQuality = activeQuality,
+                activeParticleCount = coroutineParticleSystem.activeCount,
                 currentFps = currentFps,
                 frameTimeMs = smoothedFrameTimeMs,
                 playerX = nextX,
@@ -1401,5 +1469,19 @@ class GameViewModel(
                 spawned++
             }
         }
+        val burstArchetype = when (color) {
+            Color(0xFF06B6D4), Color(0xFFA855F7), Color(0xFF38BDF8) -> ParticleArchetype.MAGIC_GLOW
+            Color(0xFFFFB800), Color(0xFFEF4444) -> ParticleArchetype.LAVA_SPARK
+            else -> ParticleArchetype.COMBAT_BURST
+        }
+        coroutineParticleSystem.emitBurst(
+            wx = wx,
+            wy = wy,
+            wz = wz,
+            primaryColor = color,
+            secondaryColor = Color.White,
+            count = count,
+            archetype = burstArchetype
+        )
     }
 }
